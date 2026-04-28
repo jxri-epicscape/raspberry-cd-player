@@ -23,10 +23,10 @@ A full-featured CD and music library player built on a Raspberry Pi 4, with a po
 | Part | Notes |
 |------|-------|
 | **Raspberry Pi 4 Model B** (2 GB RAM or more) | Main board. Pi 5 should also work. |
-| **HiFiBerry DAC2 HD** | Audio HAT. The HiFiBerry DAC2 HD is high-end DAC for the Raspberry Pi. |
+| **HiFiBerry DAC2 HD** | Audio HAT. The HiFiBerry DAC2 HD is a high-end DAC for the Raspberry Pi. |
 | **480 × 800 portrait HDMI display** | Any small HDMI display in portrait orientation works. |
 | **USB CD/DVD drive** | Tested with ASUS SDRW-08D2S-U. Any USB optical drive should work. |
-| **Joystick / controller** | (optional) Tested with STMicroelectronics e4you Retro Fun and the legendary Commodore 64 TAC-2. |
+| **Joystick / controller** (optional) | Tested with STMicroelectronics e4you Retro Fun and the legendary Commodore 64 TAC-2. |
 | **MicroSD card** (16 GB+) | For the OS and code. Use a quality card (SanDisk/Samsung). |
 | **USB SSD** (recommended) | Better reliability for the music library. A 250 GB USB stick or Samsung T7 works great. |
 | **USB-C power supply** (3 A) | Official Pi 4 PSU recommended. |
