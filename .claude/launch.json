@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Meta Editor (Pi)",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/opt/musicplayer/meta_editor.py"],
+      "port": 8080,
+      "note": "Runs on Raspberry Pi at 192.168.100.45 — open http://192.168.100.45:8080"
+    }
+  ]
+}

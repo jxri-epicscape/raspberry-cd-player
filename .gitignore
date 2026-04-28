@@ -1,0 +1,21 @@
+# Node
+node_modules/
+package-lock.json
+
+# Backups
+*.tar.gz
+*.tar
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Temp / runtime files
+*.log
+/tmp/
+
+# Sensitive / personal data
+disc_overrides.json
+rpi_backup_*.tar.gz
+rpi_full_backup_*.tar.gz
