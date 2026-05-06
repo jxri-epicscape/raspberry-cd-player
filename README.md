@@ -1,6 +1,6 @@
 # Raspberry Pi HiFiBerry CD Player
 
-A full-featured CD and music library player built on a Raspberry Pi 4, with a portrait touchscreen, audiophile DAC output, joystick navigation, automatic metadata/album art fetching, and a web-based management interface.
+A full-featured CD and music library player built on a Raspberry Pi 4, with a portrait screen, audiophile DAC output, joystick navigation, automatic metadata/album art fetching, and a web-based management interface.
 
 ![Player running on Raspberry Pi with portrait display]
 
