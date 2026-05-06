@@ -248,13 +248,28 @@ class UI:
             title = track.get("title", f"Track {current_track + 1}")
             self._draw_text_centered(title, self.font_bold, now_y, C_ACCENT)
 
-        # ── Progress bar (thin, no timestamps) ───────────────────────────────
-        bar_y = now_y + 28
-        frac  = (position / duration) if duration > 0 else 0
-        pygame.draw.rect(self.screen, C_PROGRESS, (20, bar_y, WIDTH - 40, 3), border_radius=2)
+        # ── Progress bar + position dot ──────────────────────────────────────
+        bar_y = now_y + 30
+        bar_x = 20
+        bar_w = WIDTH - 40
+        bar_h = 8
+        frac  = max(0.0, min(1.0, (position / duration) if duration > 0 else 0))
+
+        # Track (background)
+        pygame.draw.rect(self.screen, C_PROGRESS,
+                         (bar_x, bar_y, bar_w, bar_h), border_radius=4)
+        # Filled portion
         if frac > 0:
             pygame.draw.rect(self.screen, C_ACCENT,
-                             (20, bar_y, int((WIDTH - 40) * frac), 3), border_radius=2)
+                             (bar_x, bar_y, int(bar_w * frac), bar_h), border_radius=4)
+
+        # Dot — amber when playing, grey when paused
+        dot_cx    = bar_x + int(bar_w * frac)
+        dot_cy    = bar_y + bar_h // 2
+        dot_color = C_ACCENT        if not paused else (105, 105, 120)
+        glow_col  = (100,  65,   0) if not paused else ( 45,  45,  55)
+        pygame.draw.circle(self.screen, glow_col,  (dot_cx, dot_cy), 8)
+        pygame.draw.circle(self.screen, dot_color, (dot_cx, dot_cy), 5)
 
         # ── Tracklist ─────────────────────────────────────────────────────────
         tl_y   = TRACK_LIST_Y

@@ -138,6 +138,22 @@ class Player:
             return float(res.get("data") or 0)
         return 0.0
 
+    def get_duration(self) -> float:
+        """Return duration of current file/stream in seconds."""
+        res = self._send(["get_property", "duration"])
+        if res and res.get("error") == "success":
+            data = res.get("data")
+            if data is not None:
+                return float(data)
+        return 0.0
+
+    def get_chapter_list(self) -> list:
+        """Return chapter list (CDDA: one entry per track, each has 'time' = start offset)."""
+        res = self._send(["get_property", "chapter-list"])
+        if res and res.get("error") == "success":
+            return res.get("data") or []
+        return []
+
     def is_idle(self) -> bool:
         res = self._send(["get_property", "idle-active"])
         if res and res.get("error") == "success":

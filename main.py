@@ -72,6 +72,12 @@ class MusicPlayer:
         self._disc_id_str    = None   # stored so hot-reload can re-fetch
         self._override_mtime = 0      # mtime of disc_overrides.json at last load
 
+        # Progress bar state
+        self._playback_pos   = 0.0
+        self._playback_dur   = 0.0
+        self._chapter_times  = []   # CDDA: absolute start time of each chapter
+        self._dur_track      = -1   # track index for which duration was last cached
+
         self._cd_monitor = threading.Thread(target=self._monitor_cd, daemon=True)
         self._cd_monitor.start()
 
@@ -279,7 +285,15 @@ class MusicPlayer:
         self.current_track = 0
         self._start_playback()
 
+    def _reset_progress(self):
+        """Clear cached progress state when switching to a new source/album."""
+        self._playback_pos  = 0.0
+        self._playback_dur  = 0.0
+        self._chapter_times = []
+        self._dur_track     = -1
+
     def _start_playback(self):
+        self._reset_progress()
         self.state  = State.PLAYBACK
         self.paused = False
         self._play_track(self.current_track)
@@ -294,6 +308,8 @@ class MusicPlayer:
         uri = f"cdda://{idx + 1}" if self.source == "cd" else track.get("path", "")
 
         self._last_play_time = time.monotonic()
+        self._playback_pos   = 0.0
+        self._dur_track      = -1   # force duration re-fetch for new track
         self.player.play(uri)
         self.paused = False
         self.stats.log_play(
@@ -475,11 +491,44 @@ class MusicPlayer:
             elif s == State.CD_LOADING:
                 pass   # ui.show_loading() already painted
             elif s == State.PLAYBACK:
+                abs_pos = self.player.get_position()
+                if self.source == "cd":
+                    # CDDA: time-pos is absolute from disc start.
+                    # Use chapter start times to get per-track position/duration.
+                    if not self._chapter_times:
+                        chapters = self.player.get_chapter_list()
+                        self._chapter_times = [
+                            float(ch.get("time", 0)) for ch in chapters
+                        ]
+                    if self._chapter_times:
+                        ch = self.current_track
+                        t0 = self._chapter_times[ch] if ch < len(self._chapter_times) else 0
+                        t1 = (self._chapter_times[ch + 1]
+                              if ch + 1 < len(self._chapter_times) else 0)
+                        if t1 <= t0:
+                            # Last track — fetch total disc duration once
+                            if self._dur_track != ch:
+                                total = self.player.get_duration()
+                                self._playback_dur = max(0.0, total - t0)
+                                self._dur_track = ch
+                        else:
+                            self._playback_dur = t1 - t0
+                        self._playback_pos = max(0.0, abs_pos - t0)
+                    else:
+                        self._playback_pos = abs_pos
+                else:
+                    # Library / vault: time-pos resets to 0 per file
+                    self._playback_pos = abs_pos
+                    if self._dur_track != self.current_track:
+                        self._playback_dur = self.player.get_duration()
+                        self._dur_track    = self.current_track
                 self.ui.draw_playback(
                     album_info    = self.album_info,
                     tracklist     = self.tracklist,
                     current_track = self.current_track,
                     paused        = self.paused,
+                    position      = self._playback_pos,
+                    duration      = self._playback_dur,
                 )
             elif s == State.WRAPPED_SUMMARY:
                 summary = self.stats.get_wrapped()

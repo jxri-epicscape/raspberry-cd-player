@@ -40,6 +40,117 @@ except OSError:
     pass
 
 
+def search_cover_art(artist: str, album: str) -> list:
+    """Query iTunes and Deezer for album cover art. Returns list of result dicts."""
+    import urllib.request as _req
+    results = []
+    query = urllib.parse.quote(f"{artist} {album}")
+
+    # iTunes
+    try:
+        url = (f"https://itunes.apple.com/search"
+               f"?term={query}&entity=album&limit=8&media=music")
+        req = _req.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with _req.urlopen(req, timeout=6) as r:
+            data = json.loads(r.read())
+        for item in data.get("results", []):
+            thumb = item.get("artworkUrl100", "")
+            if not thumb:
+                continue
+            full = re.sub(r'\d+x\d+bb', '600x600bb', thumb)
+            results.append({"thumb": thumb, "full": full,
+                            "source": "iTunes",
+                            "album": item.get("collectionName", "")})
+    except Exception:
+        pass
+
+    # Deezer
+    try:
+        url = f"https://api.deezer.com/search/album?q={query}&limit=8"
+        req = _req.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with _req.urlopen(req, timeout=6) as r:
+            data = json.loads(r.read())
+        for item in data.get("data", []):
+            thumb = item.get("cover_medium", "")
+            full  = item.get("cover_xl", thumb)
+            if not thumb:
+                continue
+            results.append({"thumb": thumb, "full": full,
+                            "source": "Deezer",
+                            "album": item.get("title", "")})
+    except Exception:
+        pass
+
+    return results
+
+
+def art_search_panel(artist: str, album: str, fetch_fields: dict) -> str:
+    """Reusable inline art-search panel. fetch_fields goes into the save POST."""
+    e     = html.escape
+    extra = urllib.parse.urlencode(fetch_fields)
+    return f"""<div class="section">
+  <h3>🔍 Search cover art online</h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <input type="text" id="as-artist" value="{e(artist)}" placeholder="Artist"
+           style="flex:1;min-width:120px;margin:0">
+    <input type="text" id="as-album" value="{e(album)}" placeholder="Album"
+           style="flex:1;min-width:120px;margin:0">
+    <button class="save" type="button" onclick="searchArt()"
+            style="flex:0;white-space:nowrap;padding:9px 14px">Search</button>
+  </div>
+  <div id="art-grid" class="art-grid"></div>
+  <p id="art-status" style="color:#666;font-size:12px;margin:6px 0 0"></p>
+</div>
+<script>
+function searchArt() {{
+  var artist = encodeURIComponent(document.getElementById('as-artist').value);
+  var album  = encodeURIComponent(document.getElementById('as-album').value);
+  var status = document.getElementById('art-status');
+  var grid   = document.getElementById('art-grid');
+  status.textContent = 'Searching…';
+  grid.innerHTML = '';
+  fetch('/art-search?artist=' + artist + '&album=' + album)
+    .then(function(r){{ return r.json(); }})
+    .then(function(data) {{
+      status.textContent = data.length
+        ? data.length + ' results — click one to save'
+        : 'No results. Try different search terms.';
+      data.forEach(function(item) {{
+        var d = document.createElement('div');
+        d.className = 'art-option';
+        d.title = item.source + ': ' + item.album;
+        d.innerHTML = '<img src="' + item.thumb + '" loading="lazy">'
+          + '<div class="art-label">' + item.source + '</div>';
+        d.onclick = function() {{
+          grid.querySelectorAll('.art-option').forEach(function(x){{
+            x.classList.remove('selected');
+          }});
+          d.classList.add('selected');
+          status.textContent = 'Saving…';
+          fetch('/art-fetch', {{
+            method: 'POST',
+            headers: {{'Content-Type': 'application/x-www-form-urlencoded'}},
+            body: '{extra}&url=' + encodeURIComponent(item.full)
+          }}).then(function(r){{ return r.json(); }}).then(function(resp) {{
+            if (resp.ok) {{
+              status.innerHTML = '✓ Saved! <a href="" style="color:#ffa500"'
+                + ' onclick="location.reload();return false">Reload to see</a>';
+            }} else {{
+              status.textContent = 'Error: ' + (resp.error || 'unknown');
+              d.classList.remove('selected');
+            }}
+          }}).catch(function() {{ status.textContent = 'Save failed.'; }});
+        }};
+        grid.appendChild(d);
+      }});
+    }})
+    .catch(function() {{
+      status.textContent = 'Search failed — check internet connection.';
+    }});
+}}
+</script>"""
+
+
 def invalidate_library():
     """Delete library.json so the player rescans on next Library open."""
     try:
@@ -299,6 +410,14 @@ a{color:#ffa500;text-decoration:none}
 .section{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;
          padding:16px;margin-bottom:16px}
 .section h3{margin:0 0 12px;color:#ffa500;font-size:15px}
+.art-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.art-option{cursor:pointer;border:2px solid transparent;border-radius:6px;
+            overflow:hidden;position:relative;transition:border-color .15s}
+.art-option:hover{border-color:#555}
+.art-option.selected{border-color:#ffa500}
+.art-option img{width:80px;height:80px;object-fit:cover;display:block}
+.art-label{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.8);
+           font-size:9px;text-align:center;color:#ccc;padding:2px}
 """
 
 
@@ -371,6 +490,7 @@ def editor_page(cddb_id: str, disc: dict, msg: str = "") -> bytes:
       {reset_btn}
     </div>
   </form>
+  {art_search_panel(disc['artist'], disc['album'], {"cddb_id": cddb_id}) if cddb_id else ""}
 """)
 
 
@@ -549,6 +669,13 @@ class Handler(BaseHTTPRequestHandler):
             if body:
                 self._respond(body)
             return
+        if route == "/art-search":
+            artist = qs.get("artist", [""])[0]
+            album  = qs.get("album",  [""])[0]
+            data   = search_cover_art(artist, album)
+            self._respond(json.dumps(data).encode(),
+                          content_type="application/json")
+            return
         if route == "/rip":
             self._respond(rip_page())
             return
@@ -664,6 +791,54 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/library/rename-file":
             self._library_rename_file(field("artist"), field("album"),
                                       field("old_name"), field("new_name"))
+            return
+
+        # ── Art fetch POST route ──────────────────────────────────────────────
+        if route == "/art-fetch":
+            import urllib.request as _req
+            url        = field("url")
+            cddb_id    = field("cddb_id")
+            lib_artist = field("lib_artist")
+            lib_album  = field("lib_album")
+            if not url:
+                self._respond(json.dumps({"ok": False, "error": "no url"}).encode(),
+                              content_type="application/json")
+                return
+            try:
+                req = _req.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with _req.urlopen(req, timeout=15) as r:
+                    img_data = r.read()
+                if cddb_id:
+                    art_path = save_art(img_data, cddb_id, "cover.jpg")
+                    disc_data = load_overrides().get(cddb_id) or get_disc(cddb_id)
+                    disc_data["art_path"] = art_path
+                    save_override(cddb_id, disc_data)
+                    try:
+                        conn = sqlite3.connect(CACHE_DB)
+                        conn.execute(
+                            "UPDATE disc_cache SET art_path=? WHERE cddb_id=?",
+                            (art_path, cddb_id))
+                        conn.commit()
+                        conn.close()
+                    except Exception:
+                        pass
+                elif lib_artist and lib_album:
+                    alb_path = os.path.realpath(
+                        os.path.join(MUSIC_DIR, lib_artist, lib_album))
+                    if not alb_path.startswith(os.path.realpath(MUSIC_DIR)):
+                        raise ValueError("invalid path")
+                    os.makedirs(alb_path, exist_ok=True)
+                    with open(os.path.join(alb_path, "cover.jpg"), "wb") as f:
+                        f.write(img_data)
+                    invalidate_library()
+                else:
+                    raise ValueError("no target specified")
+                self._respond(json.dumps({"ok": True}).encode(),
+                              content_type="application/json")
+            except Exception as exc:
+                self._respond(
+                    json.dumps({"ok": False, "error": str(exc)}).encode(),
+                    content_type="application/json")
             return
 
         # ── Rip CD POST routes ────────────────────────────────────────────────
@@ -966,6 +1141,7 @@ class Handler(BaseHTTPRequestHandler):
       </form>
     </div>
   </div>
+  {art_search_panel(artist, album, {"lib_artist": artist, "lib_album": album})}
 
   <div class="section">
     <h3>Upload music files</h3>
