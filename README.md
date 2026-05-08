@@ -6,6 +6,12 @@ A full-featured CD and music library player built on a Raspberry Pi 4, with a po
 
 ---
 
+## Photos
+
+![Player front view](k1.jpg)
+
+![Display close-up](k2.jpg)
+
 ## Features
 
 - **CD playback** — insert a disc and it plays automatically. Metadata and album art fetched from MusicBrainz and iTunes.
@@ -218,11 +224,6 @@ meta_editor.py   — web management UI (Python HTTPServer, port 8080)
 ```
 
 ---
-## Photos
-
-![Player front view](k1.jpg)
-
-![Display close-up](k2.jpg)
 
 ## License
 
