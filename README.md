@@ -218,6 +218,11 @@ meta_editor.py   — web management UI (Python HTTPServer, port 8080)
 ```
 
 ---
+## Photos
+
+![Player front view](photos/K1.jpg)
+
+![Display close-up](photos/K2.jpg)
 
 ## License
 
